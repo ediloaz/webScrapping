@@ -22,3 +22,11 @@
 - [ ] Conectar con otras páginas y fusionar datos de los mismos perfumes.
 - [ ] Resolver cómo conseguir imágenes de alta calidad.
     
+
+## Ejemplo del archivo .env
+SITEMAP_URL=https://website.com/wp-sitemap.xml
+AWS_ACCESS_KEY_ID=AAA
+AWS_SECRET_ACCESS_KEY=BBB
+REGION=us-west-2
+OUTPUT=json
+BUCKET_NAME=images

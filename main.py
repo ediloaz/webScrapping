@@ -7,38 +7,66 @@ import html
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-path_to_save_sitemap = './sitemaps/most_recent_sitemap.xml'
-sitemap_url = os.getenv('SITEMAP_URL')
-bucket_name = os.getenv('bucket_name')
-data_file = './data/perfumes.json'
+"""_summary_
+Este script se encarga de extraer información de perfumes desde un sitio web,
+almacenar los datos en un archivo JSON y subir las imágenes de los perfumes a un bucket de Amazon S3.
 
+La idea es crear un archivo JSON que contenga los datos de los perfumes, incluyendo su ID, título, precio actual, precio anterior, descripción e imágenes.
+
+Hasta aquí está programado, falta refactorizar y acomodar el código para que sea más limpio y eficiente.
+
+Lo nuevo, es conectar con una base de datos noSQL (MongoDB) y subir los datos a la base de datos.
+Incluyendo, el enlace a las imágenes que se subieron a S3.
+
+Esto con el fin de que la base de datos pueda ser consultada desde una API RESTful.
+Y poder desplegar los datos en una aplicación web estilo catalógo de perfumes.
+"""
+
+load_dotenv()
+
+# Variables de entorno
+ENV_REGION = os.getenv('REGION')
+ENV_OUTPUT = os.getenv('OUTPUT')
+ENV_SITEMAP_URL = os.getenv('SITEMAP_URL')
+ENV_BUCKET_NAME = os.getenv('BUCKET_NAME')
+ENV_AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+ENV_AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+
+# Sitempap del sitio web fuente de perfumes
+XML_SITEMAP_PATH = './sitemaps/most_recent_sitemap.xml'
+
+# Archivo JSON generado en forma de Base de datos
+DATAJSON_GENERATED_PATH = './data/perfumes.json'
+
+# Variables de configuración
 USE_LOCAL_XML = True
-CANTIDAD_MAXIMA_PRODUCTOS = 2
-
 BUILD_NEW_JSON = False
+CANTIDAD_MAXIMA_PRODUCTOS = 10
 
-def get_product_urls_from_sitemap(sitemap_url):
-    response = requests.get(sitemap_url)
-    with open(path_to_save_sitemap, 'w', encoding='utf-8') as file:
+
+def get_product_urls_from_sitemap(ENV_SITEMAP_URL):
+    print(ENV_SITEMAP_URL)
+    response = requests.get(ENV_SITEMAP_URL)
+    with open(XML_SITEMAP_PATH, 'w', encoding='utf-8') as file:
         file.write(response.text)
     soup = BeautifulSoup(response.text, 'xml')
     urls = [url.loc.text for url in soup.find_all('url')][0:CANTIDAD_MAXIMA_PRODUCTOS]
     return urls
 
-def get_product_urls_from_local_xml(path_to_save_sitemap):
-    with open(path_to_save_sitemap, 'r', encoding='utf-8') as file:
+def get_product_urls_from_local_xml(XML_SITEMAP_PATH):
+    with open(XML_SITEMAP_PATH, 'r', encoding='utf-8') as file:
         response = file.read()
     soup = BeautifulSoup(response, 'xml')
     urls = [url.loc.text for url in soup.find_all('url')][0:CANTIDAD_MAXIMA_PRODUCTOS]
     return urls
 
-def get_product_urls(sitemap_url):
+def get_product_urls(ENV_SITEMAP_URL):
     if (USE_LOCAL_XML):
         print('Usando XML local')
-        return get_product_urls_from_local_xml(path_to_save_sitemap)
+        return get_product_urls_from_local_xml(XML_SITEMAP_PATH)
     else:
         print('Usando XML de sitemap')
-        return get_product_urls_from_sitemap(sitemap_url)
+        return get_product_urls_from_sitemap(ENV_SITEMAP_URL)
 
 
 def obtener_precio(string_precio):
@@ -51,7 +79,7 @@ def obtener_precio(string_precio):
 
 if (BUILD_NEW_JSON):
     lista_perfumes = [] # Para el archivo JSON
-    product_urls = get_product_urls(sitemap_url)
+    product_urls = get_product_urls(ENV_SITEMAP_URL)
     print(f'Se encontraron {len(product_urls)} URLs de productos.')
 
     # Open each URL and extract the product information
@@ -112,10 +140,10 @@ if (BUILD_NEW_JSON):
         cont += 1
 
 
-    with open(data_file, 'w') as f:
+    with open(DATAJSON_GENERATED_PATH, 'w') as f:
         json.dump(lista_perfumes, f, indent=4)
 
-    print(f'Se ha creado el archivo JSON "{data_file}" con los datos de los perfumes.')
+    print(f'Se ha creado el archivo JSON "{DATAJSON_GENERATED_PATH}" con los datos de los perfumes.')
 
 
 
@@ -146,13 +174,12 @@ print('Conectado a S3 correctamente ✅')
 
 
 # Lee el archivo JSON
-with open(data_file, 'r', encoding='utf-8') as file:
+with open(DATAJSON_GENERATED_PATH, 'r', encoding='utf-8') as file:
     data = json.load(file)
 
 for item in data:
     item_id = item['id']
     for image_url in item['imagenes']:
-        print(f'Descargando {image_url}...')
         # Descarga la imagen
         response = requests.get(image_url)
         image_data = response.content
@@ -165,6 +192,6 @@ for item in data:
         s3_key = f"{item_id}/{image_name}"
 
         # Sube la imagen a S3
-        s3.put_object(Bucket=bucket_name, Key=s3_key, Body=image_data, ContentType=content_type)
+        s3.put_object(Bucket=ENV_BUCKET_NAME, Key=s3_key, Body=image_data, ContentType=content_type)
 
-        print(f'Subido {image_name} a {bucket_name}')
+        print(f'Subido {image_name} a {ENV_BUCKET_NAME}')
