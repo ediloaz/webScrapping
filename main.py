@@ -1,11 +1,4 @@
-import boto3
-import os
-import json
-import codecs
-import requests
 import html
-from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 
 from config.settings import ENV_SITEMAP_URL, CANTIDAD_MAXIMA_PRODUCTOS
 from scraper.sitemap_loader import SitemapScraper
@@ -18,16 +11,19 @@ print("Iniciando proceso de scraping de perfumes...")
 
 scraper = SitemapScraper(url=ENV_SITEMAP_URL)
 urls = scraper.get_urls(max_count=CANTIDAD_MAXIMA_PRODUCTOS)
-print(f"URLs obtenidas: {len(urls)}")
+
+print()
+print(f"URLs a procesar: {len(urls)}")
 
 perfumes = []
 for i, url in enumerate(urls, 1):
     html = ProductScraper.scrape(url)
     perfume = PerfumeParser.parse(html)
     perfumes.append(perfume)
-    print(f"[{i}/{len(urls)}] Procesado: {perfume['titulo']}")
+    print(f"[{i}/{len(urls)}] Procesado: {perfume['id']} - {perfume['titulo']}")
 
 JSONWriter.write(perfumes)
 S3Uploader.upload_images(perfumes)
 
+print()
 print("Proceso finalizado ✅")
