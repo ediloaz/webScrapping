@@ -7,6 +7,7 @@ class S3Uploader:
     @staticmethod
     def upload_images(data):
         s3 = boto3.client('s3')
+        print("Iniciando la subida de imágenes a S3...")
         for item in data:
             index = 1
             for image_url in item['imagenes_fuente']:
@@ -19,4 +20,5 @@ class S3Uploader:
                 print(f"> Imagen subida: {s3_key} ({content_type})")
         
         print("Todas las imágenes han sido subidas a S3, al bucket:", ENV_BUCKET_NAME)
+        print()
 
